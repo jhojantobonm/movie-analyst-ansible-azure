@@ -1,43 +1,26 @@
 ---
-# - name: Debug Set database variables
-#   ansible.builtin.debug:
-#     msg:
-#     - "db_host: {{ db_host }}"
-#     - "db_port: {{ db_port }}"
-#     - "db_name: {{ db_name }}"
-#     - "db_user: {{ db_user }}"
-#     - "db_password: {{ db_password }}"
-#     - "backend_service_name: {{ backend_service_name }}"
-#     - "backend_app_dir: {{ backend_app_dir }}"
-- name: Verify credentials
-  command:
-    argv:
-      - aws 
-      - sts 
-      - get-caller-identity 
-      - --region 
-      - "{{ aws_region }}"
+- name: Login using Managed Identity
+  ansible.builtin.command:
+    cmd: az login --identity
+    
+- name: Verify Azure credentials
+  ansible.builtin.command:
+    cmd: az account show
 
-- name: Read database secret
-  command:
-    argv:
-      - aws
-      - secretsmanager
-      - get-secret-value
-      - --secret-id
-      - "{{ db_secret_name }}"
-      - --region
-      - "{{ aws_region }}"
+- name: Read database secret from Azure Key Vault
+  ansible.builtin.command:
+    cmd: >
+      az keyvault secret show
+      --vault-name {{ key_vault_name }}
+      --name {{ db_secret_name }}
+      --query value
+      -o tsv
   register: secret_json
 
-- name: Parse AWS response
+- name: Parse Key Vault secret
   ansible.builtin.set_fact:
-    secret: "{{ secret_json.stdout | from_json }}"
+    db_credentials: "{{ secret_json.stdout | from_json }}"
 
-- name: Parse SecretString
-  ansible.builtin.set_fact:
-    db_credentials: "{{ secret.SecretString | from_json }}"
-  
 - name: Set database variables
   ansible.builtin.set_fact:
     db_host: "{{ db_credentials.db_host }}"

@@ -1,3 +1,3 @@
 backend_service_name: movie-backend
 
-backend_app_dir: /home/ubuntu/movie-analyst-api
+backend_app_dir: /home/ubuntu/movie-analyst-api-azure

@@ -9,17 +9,20 @@
     state: present
     update_cache: true
 
-- name: Remove old Node.js and npm
+- name: Remove old Node.js
   ansible.builtin.apt:
     name:
       - nodejs
       - npm
     state: absent
     purge: true
+  ignore_errors: true
+
+- name: Autoremove unused packages
+  ansible.builtin.apt:
     autoremove: true
 
-    
-- name: Add NodeSource repository for Node.js 20
+- name: Add NodeSource repository
   ansible.builtin.shell: |
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
   args:
@@ -31,99 +34,69 @@
     state: present
     update_cache: true
 
-- name: Download AWS CLI v2
-  ansible.builtin.get_url:
-    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
-    dest: /tmp/awscliv2.zip
-    mode: "0644"
+- name: Install Azure CLI
+  ansible.builtin.shell: |
+    curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+  args:
+    creates: /usr/bin/az
 
-- name: Extract AWS CLI
-  ansible.builtin.unarchive:
-    src: /tmp/awscliv2.zip
-    dest: /tmp
-    remote_src: true
-
-- name: Install AWS CLI
+- name: Login using Managed Identity
   ansible.builtin.command:
-    cmd: /tmp/aws/install --update
+    cmd: az login --identity
 
-- name: Verify credentials 
-  command:
-    argv:
-      - aws 
-      - sts 
-      - get-caller-identity 
-      - --region 
-      - "{{ aws_region }}"
-  register: credentials
-
-- name: Debug credentials
-  ansible.builtin.debug:
-    msg:
-    - "credentials: {{ credentials.stdout }}"
-# - name: Read database secret
-#   command:
-#     argv:
-#       - aws
-#       - secretsmanager
-#       - get-secret-value
-#       - --secret-id
-#       - "{{ db_secret_name }}"
-#       - --region
-#       - "{{ aws_region }}"
-#   register: secret_json
-  
-# - name: Debug ead database secret
-#   ansible.builtin.debug:
-#     msg:
-#     - "db_secret_name: {{ db_secret_name }}"
-#     - "aws_region: {{ aws_region }}"
-#     - "secret_json: {{ secret_json.stdout }}"
-
-# - name: Parse AWS response
-#   ansible.builtin.set_fact:
-#     secret: "{{ secret_json.stdout | from_json }}"
-
-# - name: Parse SecretString
-#   ansible.builtin.set_fact:
-#     db_credentials: "{{ secret.SecretString | from_json }}"
-  
-# - name: Set database variables
-#   ansible.builtin.set_fact:
-#     db_secret: "{{ db_secret }}"
-#     db_port: "{{ db_port }}"
-#     db_name: "{{ db_name }}"
-#     # db_user: "{{ db_secret.username }}"
-#     # db_password: "{{ db_secret.password }}"
-#     db_user: "{{ db_user }}"
-#     db_password: "{{ db_password }}"
-
-# - name: Debug Set database variables
-#   ansible.builtin.debug:
-#     msg:
-    # - "db_secret: {{ db_secret }}"
-    # - "db_port: {{ db_credentials.port}}"
-    # - "db_name: {{ db_secret.database }}"
-    # - "db_user: {{ db_secret.username }}"
-    # - "db_password: {{ db_secret.password }}"
-#     - "db_user: {{ db_user }}"
-#     - "db_password: {{ db_password }}"
+- name: Verify Azure login
+  ansible.builtin.command:
+    cmd: az account show
 
 - name: Clone backend repository
   ansible.builtin.git:
-    repo: https://github.com/jhojantobonm/movie-analyst-api.git
-    dest: /home/ubuntu/movie-analyst-api
+    repo: https://github.com/jhojantobonm/movie-analyst-api-azure.git
+    dest: /home/ubuntu/movie-analyst-api-azure
     version: main
+    update: true
+
+- name: Set repository ownership
+  ansible.builtin.file:
+    path: /home/ubuntu/movie-analyst-api-azure
+    owner: ubuntu
+    group: ubuntu
+    recurse: true
 
 - name: Install npm dependencies
   community.general.npm:
-    path: /home/ubuntu/movie-analyst-api
+    path: /home/ubuntu/movie-analyst-api-azure
 
-- name: Deploy systemd service
-  ansible.builtin.template:
-    src: movie-backend.service.j2
+- name: Create backend systemd service
+  ansible.builtin.copy:
     dest: /etc/systemd/system/movie-backend.service
-    owner: root
-    group: root
     mode: "0644"
-  notify: Restart backend
+    content: |
+      [Unit]
+      Description=Movie Backend
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=root
+      WorkingDirectory=/home/ubuntu/movie-analyst-api-azure
+
+      Environment=KEY_VAULT_URI=https://{{ key_vault_name }}.vault.azure.net
+      Environment=DB_SECRET_NAME={{ db_secret_name }}
+      Environment=PORT=3000
+
+      ExecStart=/usr/bin/npm start
+
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  notify:
+    - Reload systemd
+    - Restart backend
+
+- name: Enable backend service
+  ansible.builtin.service:
+    name: movie-backend
+    enabled: true
+    state: started

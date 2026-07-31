@@ -9,64 +9,47 @@
     state: present
     update_cache: true
 
-- name: Download AWS CLI v2
-  ansible.builtin.get_url:
-    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
-    dest: /tmp/awscliv2.zip
-    mode: "0644"
+- name: Install Azure CLI
+  ansible.builtin.shell: |
+    curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+  args:
+    creates: /usr/bin/az
 
-- name: Extract AWS CLI
-  ansible.builtin.unarchive:
-    src: /tmp/awscliv2.zip
-    dest: /tmp
-    remote_src: true
-
-- name: Install AWS CLI
+- name: Login using Managed Identity
   ansible.builtin.command:
-    cmd: /tmp/aws/install --update
+    cmd: az login --identity
 
-- name: Verify credentials
-  command:
-    argv:
-      - aws 
-      - sts 
-      - get-caller-identity 
-      - --region 
-      - "{{ aws_region }}"
+- name: Verify Azure login
+  ansible.builtin.command:
+    cmd: az account show
+  register: azure_account
 
-- name: Read database secret
-  command:
-    argv:
-      - aws
-      - secretsmanager
-      - get-secret-value
-      - --secret-id
-      - "{{ db_secret_name }}"
-      - --region
-      - "{{ aws_region }}"
+- name: Read database secret from Azure Key Vault
+  ansible.builtin.command:
+    cmd: >
+      az keyvault secret show
+      --vault-name {{ key_vault_name }}
+      --name {{ db_secret_name }}
+      --query value
+      -o tsv
   register: secret_json
 
-- name: Parse AWS response
+- name: Parse Key Vault secret
   ansible.builtin.set_fact:
-    secret: "{{ secret_json.stdout | from_json }}"
+    db_credentials: "{{ secret_json.stdout | from_json }}"
 
-- name: Parse SecretString
-  ansible.builtin.set_fact:
-    db_credentials: "{{ secret.SecretString | from_json }}"
-  
 - name: Set database variables
   ansible.builtin.set_fact:
-    # db_port: "{{ db_credentials.db_port }}"
     db_name: "{{ db_credentials.db_name }}"
     db_username: "{{ db_credentials.db_username }}"
     db_password: "{{ db_credentials.db_password }}"
 
-- name: Debug ead database secret
+- name: Debug database values
   ansible.builtin.debug:
     msg:
-    - "db_name: {{ db_name }}"
-    - "db_username: {{ db_username }}"
-    - "db_password: {{ db_password }}"
+      - "db_name={{ db_name }}"
+      - "db_username={{ db_username }}"
+      - "db_password={{ db_password }}"
 
 - name: Enable mysql
   ansible.builtin.service:
