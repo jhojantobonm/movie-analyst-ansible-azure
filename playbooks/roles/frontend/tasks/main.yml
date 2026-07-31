@@ -11,13 +11,13 @@
 
 - name: Clone application
   ansible.builtin.git:
-    repo: https://github.com/jhojantobonm/movie-analyst-ui.git
+    repo: https://github.com/jhojantobonm/movie-analyst-ui-azure.git
     dest: /home/ubuntu/movie-analyst-ui
     version: main
 
 - name: Install npm dependencies
   community.general.npm:
-    path: /home/ubuntu/movie-analyst-ui
+    path: /home/ubuntu/movie-analyst-ui-azure
 
 - name: Deploy systemd service
   ansible.builtin.template:

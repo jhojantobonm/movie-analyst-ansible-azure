@@ -5,8 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/home/ubuntu/movie-analyst-ui
-Environment=BACKEND_URL={{ alb_backend_dns }}
+WorkingDirectory=/home/ubuntu/movie-analyst-ui-azure
+Environment=BACKEND_URL={{ backend_ilb_private_ip }}
 Environment=PORT=80
 ExecStart=/usr/bin/npm start
 Restart=always
