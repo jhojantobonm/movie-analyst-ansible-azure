@@ -5,11 +5,12 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/home/ubuntu/movie-analyst-api
+WorkingDirectory=$${APP_DIR}
 
-Environment=DB_SECRET_NAME={{db_secret_name}}
-Environment=AWS_REGION={{aws_region}}
+Environment=KEY_VAULT_URI=https://${key_vault_name}.vault.azure.net
+Environment=DB_SECRET_NAME=${db_secret_name}
 Environment=PORT=3000
+
 ExecStart=/usr/bin/npm start
 
 Restart=always

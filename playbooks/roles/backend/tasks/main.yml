@@ -65,35 +65,12 @@
 - name: Install npm dependencies
   community.general.npm:
     path: /home/ubuntu/movie-analyst-api-azure
-
+    
 - name: Create backend systemd service
-  ansible.builtin.copy:
+  ansible.builtin.template:
+    src: movie-backend.service.j2
     dest: /etc/systemd/system/movie-backend.service
-    mode: "0644"
-    content: |
-      [Unit]
-      Description=Movie Backend
-      After=network.target
-
-      [Service]
-      Type=simple
-      User=root
-      WorkingDirectory=/home/ubuntu/movie-analyst-api-azure
-
-      Environment=KEY_VAULT_URI=https://{{ key_vault_name }}.vault.azure.net
-      Environment=DB_SECRET_NAME={{ db_secret_name }}
-      Environment=PORT=3000
-
-      ExecStart=/usr/bin/npm start
-
-      Restart=always
-      RestartSec=5
-
-      [Install]
-      WantedBy=multi-user.target
-  notify:
-    - Reload systemd
-    - Restart backend
+  notify: Reload systemd
 
 - name: Enable backend service
   ansible.builtin.service:
