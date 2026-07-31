@@ -5,10 +5,10 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=$${APP_DIR}
+WorkingDirectory={{ backend_app_dir }}
 
-Environment=KEY_VAULT_URI=https://${key_vault_name}.vault.azure.net
-Environment=DB_SECRET_NAME=${db_secret_name}
+Environment=KEY_VAULT_URI=https://{{ key_vault_name }}.vault.azure.net
+Environment=DB_SECRET_NAME={{ db_secret_name }}
 Environment=PORT=3000
 
 ExecStart=/usr/bin/npm start

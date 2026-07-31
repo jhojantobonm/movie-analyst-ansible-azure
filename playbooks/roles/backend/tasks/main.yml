@@ -65,15 +65,12 @@
 - name: Install npm dependencies
   community.general.npm:
     path: /home/ubuntu/movie-analyst-api-azure
-    
-- name: Create backend systemd service
+
+- name: Deploy systemd service
   ansible.builtin.template:
     src: movie-backend.service.j2
     dest: /etc/systemd/system/movie-backend.service
+    owner: root
+    group: root
+    mode: "0644"
   notify: Restart backend
-
-- name: Enable backend service
-  ansible.builtin.service:
-    name: movie-backend
-    enabled: true
-    state: started
