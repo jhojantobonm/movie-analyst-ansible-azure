@@ -12,7 +12,7 @@
 - name: Clone application
   ansible.builtin.git:
     repo: https://github.com/jhojantobonm/movie-analyst-ui-azure.git
-    dest: /home/ubuntu/movie-analyst-ui
+    dest: /home/ubuntu/movie-analyst-ui-azure
     version: main
 
 - name: Install npm dependencies
