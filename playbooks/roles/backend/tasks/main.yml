@@ -70,7 +70,7 @@
   ansible.builtin.template:
     src: movie-backend.service.j2
     dest: /etc/systemd/system/movie-backend.service
-  notify: Reload systemd
+  notify: Restart backend
 
 - name: Enable backend service
   ansible.builtin.service:
